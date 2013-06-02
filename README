@@ -1,0 +1,146 @@
+AutoNeighXy - Automatic Neighbor Proxy
+======================================
+
+At home my Internet Service Provider (ISP) gives access to the Internet through
+a Customer Premise Equipment it manages. This CPE allows computers to be
+connected by Ethernet wires or by WiFi and uses both IPv4 (with NAT) and IPv6.
+It expects everything at home to be "plain" in the network. This means I can't
+put a router behind the CPE to connect more hosts, I only can use hubs,
+switches and other bridges. As I can't modify the CPE (because my ISP forbids
+it), I can't inject routing information into it.
+
+Creating a bridge between a wireless interface and a wired one is not always
+available and this causes limitations. To be able to solve this, I've built a
+software which simulates the behavior of bridging network interfaces using
+routing. This kind of software is called "ARP proxy" in IPv4 and "NDP proxy"
+in IPv6 (ARP = Address Resolution Protocol and NDP = Neighbor Discovery
+Protocol), and the one I've written uses automatic and adaptive configuration.
+
+Following sections will first describe more precisely how my hosts are
+connected, then it will present AutoNeighXy, what I've created to solve my
+problem, and finally it will give more information about installation and
+configuration.
+
+A small glossary of acronyms is given at the end to help people not being very
+familiar with networking vocabulary.
+
+
+Network Architecture of my home
+-------------------------------
+
+A figure being far more clear than tons of text, here is how computers and
+other things are connected to the Internet at my home::
+
+       Internet
+           |
+           |
+        +-----+                          +-------+
+        | CPE | ) ) ) ) ) ) WiFi ( ( ( ( | My PC |
+        +-----+                          +-------+
+         |   |                               |
+         |   |                               |
+    +-----+  +-----+       +---------+       |        +---------+
+    | PC2 |  | PC1 |       | NetDisk |---- Switch ----| Printer |
+    +-----+  +-----+       +---------+   in my room   +---------+
+
+
+The CPE of my ISP provides three Ethernet interfaces and a WiFi access point.
+Being connected by wire or by wireless is the same thing topologically
+speaking: computers see the same services and can communicate one another, they
+are in the same LAN. My brothers use two computers at home, PC1 and PC2.
+They are connected to the CPE by Ethernet cables. I use my computer from my
+room, which is quite far from the CPE. Because of that, I have to use wireless
+connectivity to get to the Internet from my PC. In my room they are a printer
+and a Network Disk (NetDisk) which contains my personal files (well... in fact,
+there's also another WiFi hotspot and a Raspberry Pi but let's keep it simple
+here). Everything in my room is connected to my PC with a network switch and my
+PC forwards Internet data between WiFi and the switch.
+
+Problem: My ISP provides Internet with its CPE with addresses in 192.168.1.0/24
+and 2001:db8::/64 ranges (IPv4 and IPv6). ow do I get network connectivity to
+devices connected in my room ?
+
+Here are some common solutions which work in other situations:
+
+:Bridge the network interfaces of my PC: My hardware doesn't allow the wireless
+ interface of my PC to be bridged, so this can't work.
+
+:Use another prefix on the switch: I know my ISP gave 2001:db8::/60 to my home
+ so I can use 2001:db8:1::/64 in my room. This should work if there were a
+ DHCPv6 server running (thanks to prefix delegation) but this is not the case.
+ Moreover I can't tell my CPE to route this new prefix via my PC. Some people
+ are working in deploying OSPF in a home network but this is still in research.
+
+:Use Network Address Translation (NAT): A NAT on my PC with private addresses
+ (`RFC 1918 <http://tools.ietf.org/html/rfc1918>`_) or Unique Local Addresses
+ (ULA, `RFC 4193 <http://tools.ietf.org/html/rfc4193>`_) in my room. Beside the
+ fact that IPv6 NAT is awful (my home does have more than 10^19 IPv6 addresses
+ with a /64 prefix!), it doesn't allow my brothers to use my printer nor my
+ network disk from PC1 or PC2 without strong headaches when doing the
+ configuration (port forwarding, service discovery proxy, etc.)
+
+
+Solution: AutoNeighXy
+---------------------
+
+My CPE forces me to use addresses from its LAN address range (192.168.1.0/24
+and 2001:db8::/64) in my room and my PC prevent me to bridge wireless and wired
+networks. Some researches led to RFC 4389
+<http://tools.ietf.org/html/rfc4389>`_. Scenario 1 (section `1.1
+<http://tools.ietf.org/html/rfc4389#section-1.1>`_) describes exactly my
+situation! So there are some people who have thought about this and created NDP
+proxies. Basically my PC tells that the printer and the NetDisk are itself on
+the CPE LAN, and tells things in my room that it owns the IP addresses of the
+CPE, PC1 and PC2.
+
+Linux kernel of NDP proxies implementation was not really useful before 2012
+because there were no way to list configured NDP proxies. Recent kernel
+(version >=3.3) implements what was needed for “ip neigh show proxy” command to
+work. With that, it's quite easy to write a program which listens to NDP
+messages other the network and configures automatically the proxies. Several
+projects exist to do that but none take into account routing issues.
+Nevertheless most of these projects use two different address spaces at the two
+sides of the routers. Here I need to have the same prefix (2001:db8::/64)
+everywhere. So on my PC, both wired and wireless interface use in 2001:db8::/64
+and I need to add specific routes to the addresses of my printer and my NetDisk 
+or this to work. Therefore routes are automatically added when a new neighbor
+appears on the network.
+
+The software I've created is written in Python and uses Scapy to sniff and send
+packets over the network. It makes call to ``ip`` command to set up neighbor
+proxies and routes and has an internal state of the whole home network. That's
+not scalable to big homes (or castles) but in such cases, routing several
+prefixes in far more efficient.
+
+
+Glossary
+--------
+
+:ARP: Address Resolution Protocol,
+    what's used to map an IPv4 address to a link-layer address
+:CPE: Customer Premise Equipment,
+    here being a router at home connected to the ISP.
+:ISP: Internet Service Provider,
+    a business which brings Internet access to home.
+:IPv4: Internet Protocol version 4,
+    the ancient protocol of the Internet.
+:IPv6: Internet Protocol version 6,
+    the new standard which solves us from NAT system.
+:NAT: Network Address Translation,
+    a terrible system which breaks Internet connectivity.
+:NDP: Neighbor Discovery Protocol,
+    what's used to map an IPv6 address to a link-layer address
+:LAN: Local Access Network,
+    a network where every host can communicate
+
+
+References
+----------
+* https://github.com/Tuhox/ndppd an NDP proxy implementation in C++.
+* https://github.com/andriyanov/ndp-proxy an NDP proxy implementation in C.
+* http://ip6.fr/free-broute/ when bridging interfaces is available.
+* http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=84920c1420e2b4a4150e5bb45ee5a23ea4641523
+  implementation of NDP proxy enumeration in Linux kernel.
+* https://git.kernel.org/cgit/linux/kernel/git/shemminger/iproute2.git/commit/?id=1dac7817b44f0dea2828c2b897c7b3c81550e057
+  implementation in ``ip`` command line.
+
