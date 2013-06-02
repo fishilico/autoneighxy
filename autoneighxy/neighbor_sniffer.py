@@ -68,7 +68,7 @@ class NeighborSniffer(object):
         self.update_neigh(iface, ippkt.src, ethpkt.src)
 
         if ICMPv6ND_NS in pkt:
-            # Neighbor Sollicitation
+            # Neighbor Solicitation
             pass
         elif ICMPv6ND_NA in pkt:
             # Neighbor Advertisement

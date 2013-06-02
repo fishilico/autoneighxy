@@ -55,7 +55,7 @@ class NeighTableIface(dict):
             return False
         old_hw = self.get(ip)
         if old_hw is None:
-            logger.info("New neighbor appears: {0} @ {1}_{2}"
+            logger.info("New neighbor appeared: {0} @ {1}_{2}"
                         .format(ip, self.iface, hw))
         elif old_hw != hw:
             logger.info("HW address changed for {0} @ {1}: {2} -> {3}"

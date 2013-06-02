@@ -54,7 +54,7 @@ def list_neigh(iface=None):
         if matches is not None:
             iff, ipaddr, hwaddr = matches.group('if', 'ip', 'hw')
             neigh.append((iff or iface, ipaddr, hwaddr))
-        else:
+        elif 'FAILED' not in line:
             raise ApiIpError("Unexpected line: " + line)
     return neigh
 
