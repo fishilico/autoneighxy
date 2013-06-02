@@ -56,9 +56,9 @@ there's also another WiFi hotspot and a Raspberry Pi but let's keep it simple
 here). Everything in my room is connected to my PC with a network switch and my
 PC forwards Internet data between WiFi and the switch.
 
-Problem: My ISP provides Internet with its CPE with addresses in 192.168.1.0/24
-and 2001:db8::/64 ranges (IPv4 and IPv6). ow do I get network connectivity to
-devices connected in my room ?
+**Problem**: My ISP provides Internet with its CPE with addresses in
+192.168.1.0/24 and 2001:db8::/64 ranges (IPv4 and IPv6). ow do I get network
+connectivity to devices connected in my room ?
 
 Here are some common solutions which work in other situations:
 
@@ -73,11 +73,12 @@ Here are some common solutions which work in other situations:
 
 :Use Network Address Translation (NAT): A NAT on my PC with private addresses
  (`RFC 1918 <http://tools.ietf.org/html/rfc1918>`_) or Unique Local Addresses
- (ULA, `RFC 4193 <http://tools.ietf.org/html/rfc4193>`_) in my room. Beside the
- fact that IPv6 NAT is awful (my home does have more than 10^19 IPv6 addresses
- with a /64 prefix!), it doesn't allow my brothers to use my printer nor my
- network disk from PC1 or PC2 without strong headaches when doing the
- configuration (port forwarding, service discovery proxy, etc.)
+ (ULA, `RFC 4193 <http://tools.ietf.org/html/rfc4193>`_) allows devices in my
+ room to connect to the Internet and PC1 and PC2. IPv6 NAT is *awful* though,
+ my home does have more than 10^19 IPv6 addresses  with a /64 prefix! Moreover
+ it doesn't allow my brothers to use my printer nor my network disk without
+ strong headaches when doing the  configuration (port forwarding, service
+ discovery proxy, etc.)
 
 
 Solution: AutoNeighXy
@@ -102,7 +103,7 @@ projects exist to do that but none take into account routing issues.
 Nevertheless most of these projects use two different address spaces at the two
 sides of the routers. Here I need to have the same prefix (2001:db8::/64)
 everywhere. So on my PC, both wired and wireless interface use in 2001:db8::/64
-and I need to add specific routes to the addresses of my printer and my NetDisk 
+and I need to add specific routes to the addresses of my printer and my NetDisk
 or this to work. Therefore routes are automatically added when a new neighbor
 appears on the network.
 
@@ -125,7 +126,7 @@ Glossary
 :IPv4: Internet Protocol version 4,
     the ancient protocol of the Internet.
 :IPv6: Internet Protocol version 6,
-    the new standard which solves us from NAT system.
+    the new standard which saves us from NAT system.
 :NAT: Network Address Translation,
     a terrible system which breaks Internet connectivity.
 :NDP: Neighbor Discovery Protocol,
@@ -143,4 +144,3 @@ References
   implementation of NDP proxy enumeration in Linux kernel.
 * https://git.kernel.org/cgit/linux/kernel/git/shemminger/iproute2.git/commit/?id=1dac7817b44f0dea2828c2b897c7b3c81550e057
   implementation in ``ip`` command line.
-
