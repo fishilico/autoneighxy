@@ -14,15 +14,16 @@ available and this causes limitations. To be able to solve this, I've built a
 software which simulates the behavior of bridging network interfaces using
 routing. This kind of software is called "ARP proxy" in IPv4 and "NDP proxy"
 in IPv6 (ARP = Address Resolution Protocol and NDP = Neighbor Discovery
-Protocol), and the one I've written uses automatic and adaptive configuration.
+Protocol), and the one I've written uses automatic and adaptative
+configuration.
 
 Following sections will first describe more precisely how my hosts are
 connected, then it will present AutoNeighXy, what I've created to solve my
 problem, and finally it will give more information about installation and
 configuration.
 
-A small glossary of acronyms is given at the end to help people not being very
-familiar with networking vocabulary.
+A small glossary of acronyms is given at the end to help people unfamiliar with
+networking vocabulary.
 
 
 Network Architecture of my home
@@ -50,14 +51,14 @@ speaking: computers see the same services and can communicate one another, they
 are in the same LAN. My brothers use two computers at home, PC1 and PC2.
 They are connected to the CPE by Ethernet cables. I use my computer from my
 room, which is quite far from the CPE. Because of that, I have to use wireless
-connectivity to get to the Internet from my PC. In my room they are a printer
+connectivity to get to the Internet from my PC. In my room there are a printer
 and a Network Disk (NetDisk) which contains my personal files (well... in fact,
 there's also another WiFi hotspot and a Raspberry Pi but let's keep it simple
 here). Everything in my room is connected to my PC with a network switch and my
 PC forwards Internet data between WiFi and the switch.
 
 **Problem**: My ISP provides Internet with its CPE with addresses in
-192.168.1.0/24 and 2001:db8::/64 ranges (IPv4 and IPv6). ow do I get network
+192.168.1.0/24 and 2001:db8::/64 ranges (IPv4 and IPv6). How do I give network
 connectivity to devices connected in my room ?
 
 Here are some common solutions which work in other situations:
@@ -85,8 +86,8 @@ Solution: AutoNeighXy
 ---------------------
 
 My CPE forces me to use addresses from its LAN address range (192.168.1.0/24
-and 2001:db8::/64) in my room and my PC prevent me to bridge wireless and wired
-networks. Some researches led to RFC 4389
+and 2001:db8::/64) in my room and my PC prevents me to bridge wireless and
+wired networks. In 2006 IETF published `RFC 4389
 <http://tools.ietf.org/html/rfc4389>`_. Scenario 1 (section `1.1
 <http://tools.ietf.org/html/rfc4389#section-1.1>`_) describes exactly my
 situation! So there are some people who have thought about this and created NDP
@@ -107,11 +108,37 @@ and I need to add specific routes to the addresses of my printer and my NetDisk
 or this to work. Therefore routes are automatically added when a new neighbor
 appears on the network.
 
-The software I've created is written in Python and uses Scapy to sniff and send
-packets over the network. It makes call to ``ip`` command to set up neighbor
-proxies and routes and has an internal state of the whole home network. That's
-not scalable to big homes (or castles) but in such cases, routing several
-prefixes in far more efficient.
+The software I've created is written in Python 2 and uses Scapy to sniff and
+send packets over the network. It makes call to the ``ip`` command to set up
+neighbor proxies and routes and maintains an internal state of the whole home
+network. That's not scalable to big homes (or castles) but in such cases,
+routing several network prefixes is far more efficient.
+
+
+Usage
+-----
+
+To use AutoNeighXy, you need to install `Scapy
+<http://www.secdev.org/projects/scapy/>` on your system.
+
+Then configure your system to allow packet forwarding::
+
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    echo 2 > /proc/sys/net/ipv6/conf/all/forwarding
+    iptables -A FORWARD -j ACCEPT
+    ip6tables -A FORWARD -j ACCEPT
+
+Enable ARP and NDP proxies::
+
+    echo 1 > /proc/sys/net/ipv4/conf/all/proxy_arp
+    echo 1 > /proc/sys/net/ipv6/conf/all/proxy_ndp
+
+You may replace ``all`` by a specific interface in above lines to only allow
+what you need.
+
+Finally, run test_autoneighxy.py as root with Python 2::
+
+    python2 test_autoneighxy.py
 
 
 Glossary
