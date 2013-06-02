@@ -1,0 +1,7 @@
+*~
+*.backup
+*.bak
+*.nja
+*.pyc
+*.pyo
+.*.swp
