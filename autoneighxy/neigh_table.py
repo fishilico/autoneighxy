@@ -3,7 +3,7 @@
 
 import itertools
 import logging
-from scapy.all import get_if_hwaddr
+from scapy.all import get_if_hwaddr, in6_getifaddr, IPV6_ADDR_LINKLOCAL
 
 from . import api_ip
 
@@ -18,12 +18,22 @@ class NeighTableIface(dict):
         """Retrieve current neighbors of interface iface in this object"""
         super(NeighTableIface, self).__init__()
         self.iface = iface
-        self.ifhwaddr = get_if_hwaddr(iface)
+        # Hardware address
+        self.ifhwaddr = None
+        # Link-local IPv6 address
+        self.llip6addr = None
         self.reload()
 
     def reload(self):
         """Reload tables from current state"""
         self.ifhwaddr = get_if_hwaddr(self.iface)
+        lladdresses = [
+            addr for addr, scope, iface in in6_getifaddr()
+            if scope == IPV6_ADDR_LINKLOCAL and iface == self.iface]
+        if len(lladdresses) != 1:
+            raise Exception("Unable to find link-local address of {0}"
+                            .format(self.iface))
+        self.llip6addr = lladdresses[0]
         self.clear()
         for _, ip, hw in api_ip.list_neigh(iface=self.iface):
             self[ip] = hw
