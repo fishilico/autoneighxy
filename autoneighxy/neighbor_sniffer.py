@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Sniff neighbor control communications over the network"""
 
-from scapy.all import Ether, ARP, IPv6, \
-    ICMPv6ND_NS, ICMPv6ND_NA, ICMPv6NDOptDstLLAddr, MTU, \
+from scapy.all import Ether, ARP, IPv6, L2Socket, \
+    ICMPv6ND_NS, ICMPv6ND_NA, ICMPv6ND_RS, ICMPv6ND_RA, \
+    ICMPv6NDOptDstLLAddr, MTU, \
     conf, get_if_list
 import logging
 import select
@@ -19,6 +20,22 @@ LOG_NETWORK_PACKETS = True
 def get_nonloop_ifaces():
     """Get all network interface not being loopback"""
     return [i for i in get_if_list() if i != 'lo']
+
+
+def send_icmp6(icmp6_pkt, iface):
+    """Send an ICMPv6 packet to a specific interface
+
+    This does not take into account routing table, so that allows sending
+    packets to multicast address on the specified interface
+    """
+    s = L2Socket(iface=iface)
+    # Add IPv6 header if it didn't exist
+    if IPv6 not in icmp6_pkt:
+        icmp6_pkt = IPv6() / icmp6_pkt
+    try:
+        s.send(Ether() / icmp6_pkt)
+    finally:
+        s.close()
 
 
 class NeighborSniffer(object):
@@ -55,27 +72,69 @@ class NeighborSniffer(object):
 
         # Process dynamic updates with ARP is-at
         if arppkt.op == ARP.who_has:
-            pass
+            if LOG_NETWORK_PACKETS:
+                logger.debug("[{0}] ARP who has {1} ?"
+                             .format(iface, arppkt.pdst))
         elif arppkt.op == ARP.is_at:
+            if LOG_NETWORK_PACKETS:
+                logger.debug("[{0}] ARP {1} is at {2}"
+                             .format(iface, arppkt.psrc, arppkt.hwsrc))
             self.update_neigh(iface, arppkt.pdst, arppkt.hwdst)
 
     def process_icmpv6_packet(self, iface, pkt):
-        """Process a received ICMPv6 packet"""
+        """Process a received ICMPv6 packet
+
+        It forward Neighbor Discovery Protocol packets manually
+        """
         ethpkt = pkt[Ether]
-        ippkt = pkt[IPv6]
+        ippkt = ethpkt[IPv6]
+        # Forwarded packet
+        fwdpkt = None
 
         # There is a host behind iface which is using ip.src/eth.src
         self.update_neigh(iface, ippkt.src, ethpkt.src)
 
-        if ICMPv6ND_NS in pkt:
+        if ICMPv6ND_NS in ippkt:
             # Neighbor Solicitation
-            pass
-        elif ICMPv6ND_NA in pkt:
-            # Neighbor Advertisement
-            napkt = pkt[ICMPv6ND_NA]
+            fwdpkt = ippkt[ICMPv6ND_NS]
+            if LOG_NETWORK_PACKETS:
+                logger.debug("[{0}] NSolicit for {1}"
+                             .format(iface, fwdpkt.tgt))
+        elif ICMPv6ND_NA in ippkt:
+            # Neighbor Advertisement, NOT to be forwarded.
+            # The kernel answers to NS when configured with NDP proxy
+            napkt = ippkt[ICMPv6ND_NA]
             if ICMPv6NDOptDstLLAddr in napkt:
                 dst_lladdr = napkt[ICMPv6NDOptDstLLAddr].lladdr
+                if LOG_NETWORK_PACKETS:
+                    logger.debug("[{0}] NAdvert {1} is at {2}"
+                                 .format(iface, ippkt.src, dst_lladdr))
                 self.update_neigh(iface, napkt.tgt, dst_lladdr)
+        elif ICMPv6ND_RS in ippkt:
+            # Router Solicitation
+            if LOG_NETWORK_PACKETS:
+                logger.debug("[{0}] RSolicit from {1}"
+                             .format(iface, ippkt.src))
+            fwdpkt = ippkt
+        elif ICMPv6ND_RA in ippkt:
+            # Router Advertisement
+            if LOG_NETWORK_PACKETS:
+                logger.debug("[{0}] RAdvert from {1}"
+                             .format(iface, ippkt.src))
+            # Set Proxy bit
+            rapkt = ippkt[ICMPv6ND_RA]
+            rapkt.P = 1
+            rapkt.cksum = None
+            #ippkt.src = None
+            fwdpkt = ippkt
+
+        # Forward IP packet if needed
+        if fwdpkt is not None and not self.neigh.is_local_hw(ethpkt.src):
+            for iff in self.ifaces:
+                if iff != iface:
+                    logger.debug("... Forward from {0} to {1}"
+                                 .format(iface, iff))
+                    send_icmp6(fwdpkt, iff)
 
     def run(self):
         """Sniff neighbor control messages (ARP and NDP)"""
@@ -94,16 +153,8 @@ class NeighborSniffer(object):
                         if pkt is None or Ether not in pkt:
                             continue
                         elif ARP in pkt:
-                            if LOG_NETWORK_PACKETS:
-                                logger.debug(
-                                    "Got ARP from {0}: {1}"
-                                    .format(iface, pkt.summary()))
                             self.process_arp_packet(iface, pkt)
                         elif IPv6 in pkt:
-                            if LOG_NETWORK_PACKETS:
-                                logger.debug(
-                                    "Got IPv6 from {0}: {1}"
-                                    .format(iface, pkt.summary()))
                             self.process_icmpv6_packet(iface, pkt)
 
         finally:

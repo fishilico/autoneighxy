@@ -183,6 +183,13 @@ class NeighTable(dict):
             for line in entries.dump():
                 yield line
 
+    def is_local_hw(self, hw):
+        """Test wether a hardware address is local to this host
+
+        This only tests if hw is is one of the known interfaces.
+        """
+        return any([hw == entry.ifhwaddr for entry in self.values()])
+
     def update(self, iface, ip, hw, update_proxy=False):
         """Update a neighbour entry
 
@@ -200,12 +207,14 @@ class NeighTable(dict):
             return False
 
         # Do nothing if I initiated the packet, it may be a proxy
-        if hw == entry.ifhwaddr:
+        if hw == entry.ifhwaddr or self.is_local_hw(hw):
             return False
 
         # Remove the IP address if it was in an other interface
         for other_iface, other_entry in self.items():
             if iface != other_iface and ip in other_entry:
+                logger.info("{0} has moved from {1} to {2}"
+                            .format(ip, iface, other_iface))
                 other_entry.remove_neigh(ip)
 
         if not entry.update(ip, hw):
