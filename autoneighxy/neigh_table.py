@@ -22,6 +22,10 @@ class NeighTableIface(dict):
         self.ifhwaddr = None
         # Link-local IPv6 address
         self.llip6addr = None
+        # Neighbor proxies
+        self.proxies = None
+        # Routes to hosts
+        self.host_routes = None
         self.reload()
 
     def reload(self):

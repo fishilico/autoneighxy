@@ -39,11 +39,13 @@ def send_icmp6(icmp6_pkt, iface):
 
 
 class NeighborSniffer(object):
+    """Sniff the network and manually forward some multicast packets"""
 
     sniff_filter = 'arp or (ip6 and icmp6)'
 
     def __init__(self, ifaces=None):
         self.ifaces = ifaces if ifaces is not None else get_nonloop_ifaces()
+        self.neigh = None
         self.sync_ifaces()
 
     def sync_ifaces(self):

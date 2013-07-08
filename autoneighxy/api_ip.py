@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class ApiIpError(Exception):
+    """Error message from ip command"""
 
     def __init__(self, message, code=None):
         self.code = code
