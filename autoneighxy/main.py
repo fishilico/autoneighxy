@@ -48,7 +48,7 @@ def main(argv):
         help="log messages to syslog", default=False)
 
     opts, ifaces = parser.parse_args(argv)
-    ifaces.pop()
+    ifaces = ifaces[1:]
 
     # Test interfaces
     available_ifaces = neighbor_sniffer.get_nonloop_ifaces()
