@@ -8,7 +8,7 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
-class ApiIpError(Exception):
+class IpCmdError(Exception):
     """Error message from ip command"""
 
     def __init__(self, message, code=None):
@@ -16,7 +16,7 @@ class ApiIpError(Exception):
         self.message = message
         if code is not None:
             message += " (error {0})".format(code)
-        super(ApiIpError, self).__init__(message)
+        super(IpCmdError, self).__init__(message)
 
 
 def _run_show_command(cmdline):
@@ -29,7 +29,7 @@ def _run_show_command(cmdline):
     retval = p.wait()
     if retval:
         err = p.communicate()[1].decode('ascii', errors='ignore').strip()
-        raise ApiIpError(err, code=retval)
+        raise IpCmdError(err, code=retval)
 
 
 def _run_do_command(cmdline):
@@ -39,7 +39,7 @@ def _run_do_command(cmdline):
     retval = p.wait()
     if retval:
         err = p.communicate()[1].decode('ascii', errors='ignore').strip()
-        raise ApiIpError(err, code=retval)
+        raise IpCmdError(err, code=retval)
 
 
 def list_neigh(iface=None):
@@ -56,7 +56,7 @@ def list_neigh(iface=None):
             iff, ipaddr, hwaddr = matches.group('if', 'ip', 'hw')
             neigh.append((iff or iface, ipaddr, hwaddr))
         elif 'FAILED' not in line:
-            raise ApiIpError("Unexpected line: " + line)
+            raise IpCmdError("Unexpected line: " + line)
     return neigh
 
 
@@ -78,7 +78,7 @@ def list_neigh_proxy(iface=None):
             iff, ipaddr = matches.group('if', 'ip')
             neigh.append((iff or iface, ipaddr))
         else:
-            raise ApiIpError("Unexpected line: " + line)
+            raise IpCmdError("Unexpected line: " + line)
     return neigh
 
 
@@ -86,7 +86,7 @@ def add_neigh_proxy(iface, ip):
     """Add a neighbor proxy"""
     try:
         _run_do_command(['ip', 'neigh', 'add', 'proxy', ip, 'dev', iface])
-    except ApiIpError as e:
+    except IpCmdError as e:
         # Ignore already-existing neughbors
         if e.code == 2 and 'File exists' in e.message:
             return
@@ -128,7 +128,7 @@ def add_route(iface, ip, prefixlen=None, via=None):
         cmdline += ['via', via]
     try:
         _run_do_command(cmdline)
-    except ApiIpError as e:
+    except IpCmdError as e:
         # Ignore already-existing routes
         if e.code == 2 and 'File exists' in e.message:
             return

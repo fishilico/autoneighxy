@@ -5,7 +5,7 @@ import itertools
 import logging
 from scapy.all import get_if_hwaddr, in6_getifaddr, IPV6_ADDR_LINKLOCAL
 
-from . import api_ip
+from . import ipcmd
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +39,13 @@ class NeighTableIface(dict):
                             .format(self.iface))
         self.llip6addr = lladdresses[0]
         self.clear()
-        for _, ip, hw in api_ip.list_neigh(iface=self.iface):
+        for _, ip, hw in ipcmd.list_neigh(iface=self.iface):
             self[ip] = hw
         self.proxies = set()
-        for _, ip in api_ip.list_neigh_proxy(iface=self.iface):
+        for _, ip in ipcmd.list_neigh_proxy(iface=self.iface):
             self.proxies.add(ip)
         self.host_routes = set()
-        for _, ip in api_ip.list_host_routes(iface=self.iface):
+        for _, ip in ipcmd.list_host_routes(iface=self.iface):
             self.host_routes.add(ip)
 
     def dump(self):
@@ -92,8 +92,8 @@ class NeighTableIface(dict):
         another location
         """
         try:
-            api_ip.del_neigh(self.iface, ip)
-        except api_ip.ApiIpError:
+            ipcmd.del_neigh(self.iface, ip)
+        except ipcmd.IpCmdError:
             pass
         self.del_host_route(ip)
         if ip in self:
@@ -104,8 +104,8 @@ class NeighTableIface(dict):
         if ip not in self.proxies:
             logger.info("Add Neighbor Proxy {0} @ {1}".format(ip, self.iface))
         try:
-            api_ip.add_neigh_proxy(self.iface, ip)
-        except api_ip.ApiIpError:
+            ipcmd.add_neigh_proxy(self.iface, ip)
+        except ipcmd.IpCmdError:
             # Failure is normal if the proxy already existed
             if ip in self.proxies:
                 return
@@ -114,7 +114,7 @@ class NeighTableIface(dict):
             if ip in self.proxies:
                 return
             # Let's try again, and failure goes up this time
-            api_ip.add_neigh_proxy(self.iface, ip)
+            ipcmd.add_neigh_proxy(self.iface, ip)
         self.proxies.add(ip)
 
     def del_neigh_proxy(self, ip):
@@ -123,8 +123,8 @@ class NeighTableIface(dict):
             logger.info("Delete Neighbor Proxy {0} @ {1}"
                         .format(ip, self.iface))
         try:
-            api_ip.del_neigh_proxy(self.iface, ip)
-        except api_ip.ApiIpError:
+            ipcmd.del_neigh_proxy(self.iface, ip)
+        except ipcmd.IpCmdError:
             # Failure is normal if the proxy did not exist
             if ip not in self.proxies:
                 return
@@ -133,7 +133,7 @@ class NeighTableIface(dict):
             if ip not in self.proxies:
                 return
             # Let's try again, and failure goes up this time
-            api_ip.del_neigh_proxy(self.iface, ip)
+            ipcmd.del_neigh_proxy(self.iface, ip)
         self.proxies.discard(ip)
 
     def add_host_route(self, ip):
@@ -141,8 +141,8 @@ class NeighTableIface(dict):
         if ip not in self.host_routes:
             logger.info("Add Host Route {0} @ {1}".format(ip, self.iface))
         try:
-            api_ip.add_route(self.iface, ip)
-        except api_ip.ApiIpError:
+            ipcmd.add_route(self.iface, ip)
+        except ipcmd.IpCmdError:
             # Failure is normal if the proxy already existed
             if ip in self.host_routes:
                 return
@@ -151,7 +151,7 @@ class NeighTableIface(dict):
             if ip in self.host_routes:
                 return
             # Let's try again, and failure goes up this time
-            api_ip.add_route(self.iface, ip)
+            ipcmd.add_route(self.iface, ip)
         self.host_routes.add(ip)
 
     def del_host_route(self, ip):
@@ -159,9 +159,9 @@ class NeighTableIface(dict):
         if ip in self.host_routes:
             logger.info("Delete Host Route {0} @ {1}".format(ip, self.iface))
         try:
-            api_ip.del_route(self.iface, ip)
-        except api_ip.ApiIpError:
-            # Failure is normal if the proxy did not exist
+            ipcmd.del_route(self.iface, ip)
+        except ipcmd.IpCmdError:
+            # Failure is normal if the host route did not exist
             if ip not in self.host_routes:
                 return
             # Reload tables
@@ -169,7 +169,7 @@ class NeighTableIface(dict):
             if ip not in self.host_routes:
                 return
             # Let's try again, and failure goes up this time
-            api_ip.del_route(self.iface, ip)
+            ipcmd.del_route(self.iface, ip)
         self.host_routes.discard(ip)
 
 
