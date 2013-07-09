@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-from neighbor_sniffer import NeighborSniffer
+__version__ = '0.0.1'
