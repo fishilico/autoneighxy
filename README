@@ -121,24 +121,16 @@ Usage
 To use AutoNeighXy, you need to install `Scapy
 <http://www.secdev.org/projects/scapy/>` on your system.
 
-Then configure your system to allow packet forwarding::
+Then configure your system to allow packet forwarding. If you're using iptables
+to configure your firewall, you may use these commands or adapt them to suit
+what you need::
 
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo 2 > /proc/sys/net/ipv6/conf/all/forwarding
     iptables -A FORWARD -j ACCEPT
     ip6tables -A FORWARD -j ACCEPT
 
-Enable ARP and NDP proxies::
+Finally, run autoneighxy as root user with Python 2::
 
-    echo 1 > /proc/sys/net/ipv4/conf/all/proxy_arp
-    echo 1 > /proc/sys/net/ipv6/conf/all/proxy_ndp
-
-You may replace ``all`` by a specific interface in above lines to only allow
-what you need.
-
-Finally, run test_autoneighxy.py as root with Python 2::
-
-    python2 test_autoneighxy.py
+    python2 bin/autoneighxy
 
 
 Glossary
