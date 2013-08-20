@@ -22,7 +22,7 @@ def get_nonloop_ifaces():
     return [i for i in get_if_list() if i != 'lo']
 
 
-def send_icmp6(icmp6_pkt, iface):
+def send_icmp6(icmp6_pkt, iface, hwsrcaddr=None):
     """Send an ICMPv6 packet to a specific interface
 
     This does not take into account routing table, so that allows sending
@@ -33,7 +33,7 @@ def send_icmp6(icmp6_pkt, iface):
     if IPv6 not in icmp6_pkt:
         icmp6_pkt = IPv6() / icmp6_pkt
     try:
-        s.send(Ether() / icmp6_pkt)
+        s.send(Ether(src=hwsrcaddr) / icmp6_pkt)
     finally:
         s.close()
 
@@ -152,7 +152,7 @@ class NeighborSniffer(object):
                         fwdpkt[IPv6].src = if_entry.llip6addr
                     else:
                         fwdpkt = IPv6(src=if_entry.llip6addr) / fwdpkt
-                    send_icmp6(fwdpkt, if_entry.iface)
+                    send_icmp6(fwdpkt, if_entry.iface, if_entry.ifhwaddr)
 
     def run(self):
         """Sniff neighbor control messages (ARP and NDP)"""
