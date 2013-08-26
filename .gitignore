@@ -31,3 +31,11 @@ pip-log.txt
 *.bak
 *.nja
 .*.sw[po]
+
+# Debian package
+/debian/*.log
+/debian/*.debhelper
+/debian/*.substvars
+/debian/files
+/debian/autoneighxy
+/debian/tmp
