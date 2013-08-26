@@ -67,7 +67,7 @@ def main(argv):
             '/dev/log',
             facility=logging.handlers.SysLogHandler.LOG_DAEMON)
         log_handler.setFormatter(logging.Formatter(
-            'autoneighxy[{}]: {}'.format(os.getpid()), logging_format))
+            'autoneighxy[{}]: {}'.format(os.getpid(), logging_format)))
         root_logger.addHandler(log_handler)
     else:
         log_handler = logging.StreamHandler()
